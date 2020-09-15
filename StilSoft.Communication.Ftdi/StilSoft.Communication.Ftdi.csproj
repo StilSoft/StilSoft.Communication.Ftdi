@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>StilSoft.Communication.Ftdi</RootNamespace>
+    <Authors>Stil Soft</Authors>
+    <Company>Stil Soft</Company>
+    <Description>FTDI Wraper</Description>
+    <Copyright>Copyright © Stil Soft 2020</Copyright>
+    <PackageTags>FTDI Wraper</PackageTags>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+</Project>
