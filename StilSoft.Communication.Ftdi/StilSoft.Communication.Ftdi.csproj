@@ -11,7 +11,8 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
+    <RepositoryUrl>https://github.com/StilSoft/StilSoft.Communication.Ftdi/</RepositoryUrl>
   </PropertyGroup>
 
 </Project>

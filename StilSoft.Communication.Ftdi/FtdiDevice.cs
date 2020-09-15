@@ -7,7 +7,7 @@ using StilSoft.Communication.Ftdi.Exceptions;
 
 namespace StilSoft.Communication.Ftdi
 {
-    public class CommunicationDevice
+    public class FtdiDevice
     {
         private FtdiDeviceInternal _ftdiDevice;
         private DataBits _dataBits = DataBits.Eight;
@@ -291,7 +291,7 @@ namespace StilSoft.Communication.Ftdi
             if (status != FT_STATUS.FT_OK)
                 throw new DeviceCommunicationException("Failed clear receive buffer");
         }
-        
+
         public async Task ClearReceiveBufferAsync()
         {
             await Task.Run(ClearReceiveBuffer).ConfigureAwait(false);
@@ -301,7 +301,7 @@ namespace StilSoft.Communication.Ftdi
         {
             try
             {
-                if (_ftdiDevice == null) 
+                if (_ftdiDevice == null)
                     _ftdiDevice = new FtdiDeviceInternal();
             }
             catch

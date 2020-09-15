@@ -6,7 +6,7 @@
         public string Description { get; }
 
         public DeviceInfo(string serialNumber, string description)
-        { 
+        {
             SerialNumber = serialNumber;
             Description = description;
         }
