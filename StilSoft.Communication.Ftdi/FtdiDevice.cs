@@ -137,7 +137,7 @@ namespace StilSoft.Communication.Ftdi
             var deviceListCount = GetDeviceList().Count;
 
             if (deviceListCount == 0 || deviceListCount <= index)
-                throw new DeviceNotFoundException("Device not found");
+                throw new FtdiDeviceNotFoundException("Device not found");
 
             var status = _ftdiDevice.OpenByIndex((uint)index);
             if (status != FT_STATUS.FT_OK)
@@ -274,7 +274,7 @@ namespace StilSoft.Communication.Ftdi
 
             var status = _ftdiDevice.Purge(FT_PURGE.FT_PURGE_TX);
             if (status != FT_STATUS.FT_OK)
-                throw new DeviceCommunicationException("Failed to clear transmit buffer");
+                throw new FtdiDeviceCommunicationException("Failed to clear transmit buffer");
         }
 
         public async Task ClearTransmitBufferAsync()
@@ -289,7 +289,7 @@ namespace StilSoft.Communication.Ftdi
 
             var status = _ftdiDevice.Purge(FT_PURGE.FT_PURGE_RX);
             if (status != FT_STATUS.FT_OK)
-                throw new DeviceCommunicationException("Failed clear receive buffer");
+                throw new FtdiDeviceCommunicationException("Failed clear receive buffer");
         }
 
         public async Task ClearReceiveBufferAsync()
@@ -324,15 +324,15 @@ namespace StilSoft.Communication.Ftdi
 
             var status = _ftdiDevice.SetFlowControl(FT_FLOW_CONTROL.FT_FLOW_NONE, 0x00, 0x00);
             if (status != FT_STATUS.FT_OK)
-                throw new DeviceConfigurationException("Failed to set flow control");
+                throw new FtdiDeviceConfigurationException("Failed to set flow control");
 
             status = _ftdiDevice.SetLatency(1);
             if (status != FT_STATUS.FT_OK)
-                throw new DeviceConfigurationException("Failed to set latency");
+                throw new FtdiDeviceConfigurationException("Failed to set latency");
 
             status = _ftdiDevice.SetBitMode(0x00, FT_BIT_MODES.FT_BIT_MODE_RESET);
             if (status != FT_STATUS.FT_OK)
-                throw new DeviceConfigurationException("Failed to set bit mode");
+                throw new FtdiDeviceConfigurationException("Failed to set bit mode");
         }
 
         private void SetTimeouts(int writeTimeout, int readTimeout)
@@ -344,7 +344,7 @@ namespace StilSoft.Communication.Ftdi
 
             var status = _ftdiDevice.SetTimeouts((uint)readTimeout, (uint)writeTimeout);
             if (status != FT_STATUS.FT_OK)
-                throw new DeviceConfigurationException("Failed to set timeouts");
+                throw new FtdiDeviceConfigurationException("Failed to set timeouts");
         }
 
         private void SetBaudRate(int baudRate)
@@ -356,7 +356,7 @@ namespace StilSoft.Communication.Ftdi
 
             var status = _ftdiDevice.SetBaudRate((uint)baudRate);
             if (status != FT_STATUS.FT_OK)
-                throw new DeviceConfigurationException("Failed to set baud rate");
+                throw new FtdiDeviceConfigurationException("Failed to set baud rate");
         }
 
         private void SetDataCaracteristics(DataBits dataBits, StopBits stopBits, Parity parity)
@@ -381,7 +381,7 @@ namespace StilSoft.Communication.Ftdi
 
             var status = _ftdiDevice.SetDataCharacteristics((byte)dataBits, ftdiStopBits, (byte)parity);
             if (status != FT_STATUS.FT_OK)
-                throw new DeviceConfigurationException("Failed to set data characteristics");
+                throw new FtdiDeviceConfigurationException("Failed to set data characteristics");
         }
 
         private int SearchDeviceBySerialNumber(string serialNumber)
@@ -396,7 +396,7 @@ namespace StilSoft.Communication.Ftdi
             }
 
             if (deviceIndex == -1)
-                throw new DeviceNotFoundException("Device not found");
+                throw new FtdiDeviceNotFoundException("Device not found");
 
             return deviceIndex;
         }
@@ -413,7 +413,7 @@ namespace StilSoft.Communication.Ftdi
             }
 
             if (deviceIndex == -1)
-                throw new DeviceNotFoundException("Device not found");
+                throw new FtdiDeviceNotFoundException("Device not found");
 
             return deviceIndex;
         }
@@ -434,7 +434,7 @@ namespace StilSoft.Communication.Ftdi
                 _ftdiDevice = null;
             }
 
-            throw new DeviceException(message);
+            throw new FtdiDeviceException(message);
         }
 
         private void ThrowDeviceCommunticationException(string message)
@@ -453,7 +453,7 @@ namespace StilSoft.Communication.Ftdi
                 _ftdiDevice = null;
             }
 
-            throw new DeviceCommunicationException(message);
+            throw new FtdiDeviceCommunicationException(message);
         }
     }
 }
