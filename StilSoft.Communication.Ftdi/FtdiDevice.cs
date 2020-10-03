@@ -106,7 +106,7 @@ namespace StilSoft.Communication.Ftdi
 
             var status = _ftdiDevice.GetNumberOfDevices(ref deviceCount);
             if (status != FT_STATUS.FT_OK)
-                ThrowDeviceException("Unable to get number of devices");
+                ThrowFtdiDeviceException("Unable to get number of devices");
 
             if (deviceCount <= 0)
                 return new List<DeviceInfo>().AsReadOnly();
@@ -115,7 +115,7 @@ namespace StilSoft.Communication.Ftdi
 
             status = _ftdiDevice.GetDeviceList(deviceList);
             if (status != FT_STATUS.FT_OK)
-                ThrowDeviceException("Failed to get devices information");
+                ThrowFtdiDeviceException("Failed to get devices information");
 
             return deviceList.Select(device => new DeviceInfo(device.SerialNumber, device.Description)).ToList().AsReadOnly();
         }
@@ -128,7 +128,7 @@ namespace StilSoft.Communication.Ftdi
         public void OpenByIndex(int index)
         {
             if (IsOpen())
-                ThrowDeviceException("Device is already open");
+                ThrowFtdiDeviceException("Device is already open");
 
             Debug.WriteLine("Device Opening");
 
@@ -141,7 +141,7 @@ namespace StilSoft.Communication.Ftdi
 
             var status = _ftdiDevice.OpenByIndex((uint)index);
             if (status != FT_STATUS.FT_OK)
-                ThrowDeviceException("Failed to open device");
+                ThrowFtdiDeviceException("Failed to open device");
 
             ConfigureDevice();
 
@@ -156,7 +156,7 @@ namespace StilSoft.Communication.Ftdi
         public void OpenBySerialNumber(string serialNumber)
         {
             if (IsOpen())
-                ThrowDeviceException("Device is already open");
+                ThrowFtdiDeviceException("Device is already open");
 
             InitializeDevice();
 
@@ -173,7 +173,7 @@ namespace StilSoft.Communication.Ftdi
         public void OpenByDescription(string description)
         {
             if (IsOpen())
-                ThrowDeviceException("Device is already open");
+                ThrowFtdiDeviceException("Device is already open");
 
             InitializeDevice();
 
@@ -190,13 +190,13 @@ namespace StilSoft.Communication.Ftdi
         public void Close()
         {
             if (!IsOpen())
-                ThrowDeviceException("Device is closed");
+                ThrowFtdiDeviceException("Device is closed");
 
             Debug.WriteLine("Device Closing");
 
             var status = _ftdiDevice.Close();
             if (status != FT_STATUS.FT_OK)
-                ThrowDeviceException("Failed to close device");
+                ThrowFtdiDeviceException("Failed to close device");
 
             Debug.WriteLine("Device Closed");
         }
@@ -214,13 +214,13 @@ namespace StilSoft.Communication.Ftdi
         public void Write(byte[] data)
         {
             if (!IsOpen())
-                ThrowDeviceException("Device is closed");
+                ThrowFtdiDeviceException("Device is closed");
 
             uint numBytesWritten = 0;
 
             var status = _ftdiDevice.Write(data, data.Length, ref numBytesWritten);
             if (status != FT_STATUS.FT_OK)
-                ThrowDeviceCommunticationException("Failed to write to device");
+                ThrowFtdiDeviceCommunicationException("Failed to write to device");
 
             if (numBytesWritten != data.Length) // TODO rewrite (try to resend remain bytes if written bytes is < txData.Length )
                 Debug.WriteLine("WRITE not completed");
@@ -236,7 +236,7 @@ namespace StilSoft.Communication.Ftdi
         public int Read(byte[] receiveBuffer, int numberOfBytesToRead)
         {
             if (!IsOpen())
-                ThrowDeviceException("Device is closed");
+                ThrowFtdiDeviceException("Device is closed");
 
             var sw = new Stopwatch();
 
@@ -246,7 +246,7 @@ namespace StilSoft.Communication.Ftdi
             uint cntBytesRead = 0;
             var status = _ftdiDevice.Read(receiveBuffer, (uint)numberOfBytesToRead, ref cntBytesRead);
             if (status != FT_STATUS.FT_OK)
-                ThrowDeviceCommunticationException("Failed to read from device");
+                ThrowFtdiDeviceCommunicationException("Failed to read from device");
 
             sw.Stop();
 
@@ -270,7 +270,7 @@ namespace StilSoft.Communication.Ftdi
         public void ClearTransmitBuffer()
         {
             if (!IsOpen())
-                ThrowDeviceException("Device is closed");
+                ThrowFtdiDeviceException("Device is closed");
 
             var status = _ftdiDevice.Purge(FT_PURGE.FT_PURGE_TX);
             if (status != FT_STATUS.FT_OK)
@@ -285,7 +285,7 @@ namespace StilSoft.Communication.Ftdi
         public void ClearReceiveBuffer()
         {
             if (!IsOpen())
-                ThrowDeviceException("Device is closed");
+                ThrowFtdiDeviceException("Device is closed");
 
             var status = _ftdiDevice.Purge(FT_PURGE.FT_PURGE_RX);
             if (status != FT_STATUS.FT_OK)
@@ -306,8 +306,8 @@ namespace StilSoft.Communication.Ftdi
             }
             catch
             {
-                ThrowDeviceException("Unable to find device.\r\n" +
-                                     "Check is device drivers are installed properly");
+                ThrowFtdiDeviceException("Unable to find device.\r\n" +
+                                         "Check is device drivers are installed properly");
             }
         }
 
@@ -418,7 +418,7 @@ namespace StilSoft.Communication.Ftdi
             return deviceIndex;
         }
 
-        private void ThrowDeviceException(string message)
+        private void ThrowFtdiDeviceException(string message)
         {
             try
             {
@@ -437,7 +437,7 @@ namespace StilSoft.Communication.Ftdi
             throw new FtdiDeviceException(message);
         }
 
-        private void ThrowDeviceCommunticationException(string message)
+        private void ThrowFtdiDeviceCommunicationException(string message)
         {
             try
             {
