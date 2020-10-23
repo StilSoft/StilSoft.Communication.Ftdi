@@ -217,7 +217,7 @@ namespace StilSoft.Communication.Ftdi
             await Task.Run(() => Write(dataBuffer)).ConfigureAwait(false);
         }
 
-        public int Read(byte[] receiveBuffer, int numberOfBytesToRead, CancellationToken cancellationToken = default)
+        public void Read(byte[] receiveBuffer, int numberOfBytesToRead, CancellationToken cancellationToken = default)
         {
             if (!IsOpen())
                 ThrowFtdiDeviceException("Device is closed");
@@ -254,13 +254,11 @@ namespace StilSoft.Communication.Ftdi
             Debug.WriteLine("RxData: " +
                             BitConverter.ToString(receiveBuffer, 0, (int)totalNumberOfBytesReceived).Replace("-", "") + 
                             $" - elapsed time: {sw.Elapsed.TotalMilliseconds}");
-
-            return (int)totalNumberOfBytesReceived;
         }
 
-        public async Task<int> ReadAsync(byte[] dataBuffer, int numberOfBytesToRead, CancellationToken cancellationToken = default)
+        public async Task ReadAsync(byte[] dataBuffer, int numberOfBytesToRead, CancellationToken cancellationToken = default)
         {
-            return await Task.Run(() => Read(dataBuffer, numberOfBytesToRead, cancellationToken), cancellationToken).ConfigureAwait(false);
+            await Task.Run(() => Read(dataBuffer, numberOfBytesToRead, cancellationToken), cancellationToken).ConfigureAwait(false);
         }
 
         public void ClearTransmitBuffer()
