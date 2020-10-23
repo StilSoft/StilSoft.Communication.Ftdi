@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using StilSoft.Communication.Ftdi.Exceptions;
 
@@ -14,7 +15,6 @@ namespace StilSoft.Communication.Ftdi
         private StopBits _stopBits = StopBits.One;
         private Parity _parity = Parity.None;
         private int _baudRate = 9600;
-        private int _writeTimeout;
         private int _readTimeout;
 
         public int BaudRate
@@ -70,20 +70,6 @@ namespace StilSoft.Communication.Ftdi
             }
         }
 
-        public int WriteTimeout
-        {
-            get => _writeTimeout;
-            set
-            {
-                _writeTimeout = value;
-
-                if (value < 0)
-                    throw new ArgumentOutOfRangeException(nameof(DataBits));
-
-                SetTimeouts(_writeTimeout, _readTimeout);
-            }
-        }
-
         public int ReadTimeout
         {
             get => _readTimeout;
@@ -93,8 +79,6 @@ namespace StilSoft.Communication.Ftdi
 
                 if (value < 0)
                     throw new ArgumentOutOfRangeException(nameof(DataBits));
-
-                SetTimeouts(_writeTimeout, _readTimeout);
             }
         }
 
@@ -233,38 +217,50 @@ namespace StilSoft.Communication.Ftdi
             await Task.Run(() => Write(dataBuffer)).ConfigureAwait(false);
         }
 
-        public int Read(byte[] receiveBuffer, int numberOfBytesToRead)
+        public int Read(byte[] receiveBuffer, int numberOfBytesToRead, CancellationToken cancellationToken = default)
         {
             if (!IsOpen())
                 ThrowFtdiDeviceException("Device is closed");
 
+            var tmpBuff = new byte[numberOfBytesToRead];
+            uint numberOfBytesReceived = 0;
+            uint totalNumberOfBytesReceived = 0;
             var sw = new Stopwatch();
 
             if (_readTimeout > 0)
                 sw.Start();
 
-            uint cntBytesRead = 0;
-            var status = _ftdiDevice.Read(receiveBuffer, (uint)numberOfBytesToRead, ref cntBytesRead);
-            if (status != FT_STATUS.FT_OK)
-                ThrowFtdiDeviceCommunicationException("Failed to read from device");
+            do
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var status = _ftdiDevice.Read(tmpBuff, (uint)(numberOfBytesToRead - totalNumberOfBytesReceived), ref numberOfBytesReceived);
+                if (status != FT_STATUS.FT_OK)
+                    ThrowFtdiDeviceCommunicationException("Failed to read from device");
+
+                Array.Copy(tmpBuff, 0, receiveBuffer, totalNumberOfBytesReceived, numberOfBytesReceived);
+
+                totalNumberOfBytesReceived += numberOfBytesReceived;
+
+                if (sw.IsRunning && sw.ElapsedMilliseconds >= _readTimeout)
+                {
+                    sw.Stop();
+                    throw new FtdiDeviceTimeOutException($"Read timeout. Elapsed time: {sw.Elapsed.TotalMilliseconds}");
+                }
+            } while (totalNumberOfBytesReceived < numberOfBytesToRead);
 
             sw.Stop();
 
-            if (cntBytesRead > 0)
-            {
-                Debug.WriteLine(
-                    $"RxData: {BitConverter.ToString(receiveBuffer, 0, (int)cntBytesRead).Replace("-", "")} - elapsed time: {sw.Elapsed.TotalMilliseconds}");
-            }
+            Debug.WriteLine("RxData: " +
+                            BitConverter.ToString(receiveBuffer, 0, (int)totalNumberOfBytesReceived).Replace("-", "") + 
+                            $" - elapsed time: {sw.Elapsed.TotalMilliseconds}");
 
-            if (_readTimeout > 0 && sw.ElapsedMilliseconds >= _readTimeout)
-                Debug.WriteLine($"Read timeout. Elapsed time: {sw.Elapsed.TotalMilliseconds}");
-
-            return (int)cntBytesRead;
+            return (int)totalNumberOfBytesReceived;
         }
 
-        public async Task<int> ReadAsync(byte[] dataBuffer, int numberOfBytesToRead)
+        public async Task<int> ReadAsync(byte[] dataBuffer, int numberOfBytesToRead, CancellationToken cancellationToken = default)
         {
-            return await Task.Run(() => Read(dataBuffer, numberOfBytesToRead)).ConfigureAwait(false);
+            return await Task.Run(() => Read(dataBuffer, numberOfBytesToRead), cancellationToken).ConfigureAwait(false);
         }
 
         public void ClearTransmitBuffer()
@@ -320,9 +316,12 @@ namespace StilSoft.Communication.Ftdi
 
             SetBaudRate(_baudRate);
             SetDataCaracteristics(_dataBits, _stopBits, _parity);
-            SetTimeouts(_writeTimeout, _readTimeout);
 
-            var status = _ftdiDevice.SetFlowControl(FT_FLOW_CONTROL.FT_FLOW_NONE, 0x00, 0x00);
+            var status = _ftdiDevice.SetTimeouts(1, 0);
+            if (status != FT_STATUS.FT_OK)
+                throw new FtdiDeviceConfigurationException("Failed to set timeouts");
+
+            status = _ftdiDevice.SetFlowControl(FT_FLOW_CONTROL.FT_FLOW_NONE, 0x00, 0x00);
             if (status != FT_STATUS.FT_OK)
                 throw new FtdiDeviceConfigurationException("Failed to set flow control");
 
@@ -333,18 +332,6 @@ namespace StilSoft.Communication.Ftdi
             status = _ftdiDevice.SetBitMode(0x00, FT_BIT_MODES.FT_BIT_MODE_RESET);
             if (status != FT_STATUS.FT_OK)
                 throw new FtdiDeviceConfigurationException("Failed to set bit mode");
-        }
-
-        private void SetTimeouts(int writeTimeout, int readTimeout)
-        {
-            InitializeDevice();
-
-            if (!IsOpen())
-                return;
-
-            var status = _ftdiDevice.SetTimeouts((uint)readTimeout, (uint)writeTimeout);
-            if (status != FT_STATUS.FT_OK)
-                throw new FtdiDeviceConfigurationException("Failed to set timeouts");
         }
 
         private void SetBaudRate(int baudRate)
