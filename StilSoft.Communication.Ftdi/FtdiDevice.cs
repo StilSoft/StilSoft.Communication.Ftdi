@@ -260,7 +260,7 @@ namespace StilSoft.Communication.Ftdi
 
         public async Task<int> ReadAsync(byte[] dataBuffer, int numberOfBytesToRead, CancellationToken cancellationToken = default)
         {
-            return await Task.Run(() => Read(dataBuffer, numberOfBytesToRead), cancellationToken).ConfigureAwait(false);
+            return await Task.Run(() => Read(dataBuffer, numberOfBytesToRead, cancellationToken), cancellationToken).ConfigureAwait(false);
         }
 
         public void ClearTransmitBuffer()
