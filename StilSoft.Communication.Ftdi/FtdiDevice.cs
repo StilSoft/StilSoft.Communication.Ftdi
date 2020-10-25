@@ -35,7 +35,7 @@ namespace StilSoft.Communication.Ftdi
             set
             {
                 if (!Enum.IsDefined(typeof(StopBits), value))
-                    throw new ArgumentOutOfRangeException(nameof(StopBits), value, "");
+                    throw new ArgumentOutOfRangeException(nameof(DataBits), value, "");
 
                 _dataBits = value;
 
@@ -79,7 +79,7 @@ namespace StilSoft.Communication.Ftdi
                 _readTimeout = value;
 
                 if (value < DefaultInfiniteTimeout)
-                    throw new ArgumentOutOfRangeException(nameof(DataBits));
+                    throw new ArgumentOutOfRangeException(nameof(ReadTimeout));
             }
         }
 
