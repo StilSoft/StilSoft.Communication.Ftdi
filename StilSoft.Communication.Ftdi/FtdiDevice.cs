@@ -10,6 +10,7 @@ namespace StilSoft.Communication.Ftdi
 {
     public class FtdiDevice
     {
+        private const int DefaultInfiniteTimeout = -1;
         private FtdiDeviceInternal _ftdiDevice;
         private DataBits _dataBits = DataBits.Eight;
         private StopBits _stopBits = StopBits.One;
@@ -77,7 +78,7 @@ namespace StilSoft.Communication.Ftdi
             {
                 _readTimeout = value;
 
-                if (value < 0)
+                if (value < DefaultInfiniteTimeout)
                     throw new ArgumentOutOfRangeException(nameof(DataBits));
             }
         }
@@ -222,7 +223,7 @@ namespace StilSoft.Communication.Ftdi
             if (!IsOpen())
                 ThrowFtdiDeviceException("Device is closed");
 
-            var tmpBuff = new byte[numberOfBytesToRead];
+            var rxBuffTmp = new byte[numberOfBytesToRead];
             uint numberOfBytesReceived = 0;
             uint totalNumberOfBytesReceived = 0;
             var sw = new Stopwatch();
@@ -230,30 +231,36 @@ namespace StilSoft.Communication.Ftdi
             if (_readTimeout > 0)
                 sw.Start();
 
-            do
+            while(true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var status = _ftdiDevice.Read(tmpBuff, (uint)(numberOfBytesToRead - totalNumberOfBytesReceived), ref numberOfBytesReceived);
+                var status = _ftdiDevice.Read(rxBuffTmp, (uint)(numberOfBytesToRead - totalNumberOfBytesReceived), ref numberOfBytesReceived);
                 if (status != FT_STATUS.FT_OK)
                     ThrowFtdiDeviceCommunicationException("Failed to read from device");
 
-                Array.Copy(tmpBuff, 0, receiveBuffer, totalNumberOfBytesReceived, numberOfBytesReceived);
+                Array.Copy(rxBuffTmp, 0, receiveBuffer, totalNumberOfBytesReceived, numberOfBytesReceived);
 
                 totalNumberOfBytesReceived += numberOfBytesReceived;
 
-                if (sw.IsRunning && sw.ElapsedMilliseconds >= _readTimeout)
+                if (totalNumberOfBytesReceived >= numberOfBytesToRead)
+                    break;
+
+                if (_readTimeout == 0)
+                    throw new FtdiDeviceTimeOutException("Read timeout");
+
+                if (sw.IsRunning && sw.Elapsed.TotalMilliseconds >= _readTimeout)
                 {
                     sw.Stop();
+
                     throw new FtdiDeviceTimeOutException($"Read timeout. Elapsed time: {sw.Elapsed.TotalMilliseconds}");
                 }
-            } while (totalNumberOfBytesReceived < numberOfBytesToRead);
+            }
 
             sw.Stop();
 
-            Debug.WriteLine("RxData: " +
-                            BitConverter.ToString(receiveBuffer, 0, (int)totalNumberOfBytesReceived).Replace("-", "") + 
-                            $" - elapsed time: {sw.Elapsed.TotalMilliseconds}");
+            var receivedDataHexString = BitConverter.ToString(receiveBuffer, 0, (int)totalNumberOfBytesReceived).Replace("-", "");
+            Debug.WriteLine($"RxData: {receivedDataHexString} - elapsed time: {sw.Elapsed.TotalMilliseconds}");
         }
 
         public async Task ReadAsync(byte[] dataBuffer, int numberOfBytesToRead, CancellationToken cancellationToken = default)
