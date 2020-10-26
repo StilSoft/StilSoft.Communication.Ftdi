@@ -91,7 +91,7 @@ namespace StilSoft.Communication.Ftdi
 
             var status = _ftdiDevice.GetNumberOfDevices(ref deviceCount);
             if (status != FT_STATUS.FT_OK)
-                ThrowFtdiDeviceException("Unable to get number of devices");
+                throw new FtdiDeviceException("Unable to get number of devices");
 
             if (deviceCount <= 0)
                 return new List<DeviceInfo>().AsReadOnly();
@@ -100,7 +100,7 @@ namespace StilSoft.Communication.Ftdi
 
             status = _ftdiDevice.GetDeviceList(deviceList);
             if (status != FT_STATUS.FT_OK)
-                ThrowFtdiDeviceException("Failed to get devices information");
+                throw new FtdiDeviceException("Failed to get devices information");
 
             return deviceList.Select(device => new DeviceInfo(device.SerialNumber, device.Description)).ToList().AsReadOnly();
         }
@@ -113,7 +113,7 @@ namespace StilSoft.Communication.Ftdi
         public void OpenByIndex(int index)
         {
             if (IsOpen())
-                ThrowFtdiDeviceException("Device is already open");
+                throw new FtdiDeviceException("Device is already open");
 
             Debug.WriteLine("Device Opening");
 
@@ -122,11 +122,11 @@ namespace StilSoft.Communication.Ftdi
             var deviceListCount = GetDeviceList().Count;
 
             if (deviceListCount == 0 || deviceListCount <= index)
-                throw new FtdiDeviceNotFoundException("Device not found");
+                throw new FtdiDeviceNotFoundException("Failed to open device");
 
             var status = _ftdiDevice.OpenByIndex((uint)index);
             if (status != FT_STATUS.FT_OK)
-                ThrowFtdiDeviceException("Failed to open device");
+                throw new FtdiDeviceException("Failed to open device");
 
             ConfigureDevice();
 
@@ -141,9 +141,7 @@ namespace StilSoft.Communication.Ftdi
         public void OpenBySerialNumber(string serialNumber)
         {
             if (IsOpen())
-                ThrowFtdiDeviceException("Device is already open");
-
-            InitializeDevice();
+                throw new FtdiDeviceException("Device is already open");
 
             var deviceIndex = SearchDeviceBySerialNumber(serialNumber);
 
@@ -158,9 +156,7 @@ namespace StilSoft.Communication.Ftdi
         public void OpenByDescription(string description)
         {
             if (IsOpen())
-                ThrowFtdiDeviceException("Device is already open");
-
-            InitializeDevice();
+                throw new FtdiDeviceException("Device is already open");
 
             var deviceIndex = SearchDeviceByDescription(description);
 
@@ -175,15 +171,15 @@ namespace StilSoft.Communication.Ftdi
         public void Close()
         {
             if (!IsOpen())
-                ThrowFtdiDeviceException("Device is closed");
+                throw new FtdiDeviceException("Device is closed");
 
             Debug.WriteLine("Device Closing");
 
             var status = _ftdiDevice.Close();
             if (status != FT_STATUS.FT_OK)
-                ThrowFtdiDeviceException("Failed to close device");
+                throw new FtdiDeviceException("Failed to close device");
 
-            Debug.WriteLine("Device Closed");
+            CleanUp();
         }
 
         public async Task CloseAsync()
@@ -199,18 +195,16 @@ namespace StilSoft.Communication.Ftdi
         public void Write(byte[] data)
         {
             if (!IsOpen())
-                ThrowFtdiDeviceException("Device is closed");
+                throw new FtdiDeviceException("Device is closed");
 
             uint numBytesWritten = 0;
 
             var status = _ftdiDevice.Write(data, data.Length, ref numBytesWritten);
             if (status != FT_STATUS.FT_OK)
-                ThrowFtdiDeviceCommunicationException("Failed to write to device");
+                throw new FtdiDeviceCommunicationException("Failed to write to device");
 
-            if (numBytesWritten != data.Length) // TODO rewrite (try to resend remain bytes if written bytes is < txData.Length )
-                Debug.WriteLine("WRITE not completed");
-
-            Debug.WriteLine("TxData: " + BitConverter.ToString(data, 0, data.Length).Replace("-", ""));
+            //if (numBytesWritten != data.Length) // TODO (try to resend remain bytes if written bytes is < txData.Length )
+            //    Debug.WriteLine("WRITE not completed");
         }
 
         public async Task WriteAsync(byte[] dataBuffer)
@@ -221,23 +215,23 @@ namespace StilSoft.Communication.Ftdi
         public void Read(byte[] receiveBuffer, int numberOfBytesToRead, CancellationToken cancellationToken = default)
         {
             if (!IsOpen())
-                ThrowFtdiDeviceException("Device is closed");
+                throw new FtdiDeviceException("Device is closed");
 
+            var sw = new Stopwatch();
             var rxBuffTmp = new byte[numberOfBytesToRead];
             uint numberOfBytesReceived = 0;
             uint totalNumberOfBytesReceived = 0;
-            var sw = new Stopwatch();
 
             if (_readTimeout > 0)
                 sw.Start();
 
-            while(true)
+            while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var status = _ftdiDevice.Read(rxBuffTmp, (uint)(numberOfBytesToRead - totalNumberOfBytesReceived), ref numberOfBytesReceived);
                 if (status != FT_STATUS.FT_OK)
-                    ThrowFtdiDeviceCommunicationException("Failed to read from device");
+                    throw new FtdiDeviceCommunicationException("Failed to read from device");
 
                 Array.Copy(rxBuffTmp, 0, receiveBuffer, totalNumberOfBytesReceived, numberOfBytesReceived);
 
@@ -253,7 +247,7 @@ namespace StilSoft.Communication.Ftdi
                 {
                     sw.Stop();
 
-                    throw new FtdiDeviceTimeOutException($"Read timeout. Elapsed time: {sw.Elapsed.TotalMilliseconds}");
+                    throw new FtdiDeviceTimeOutException("Read timeout");
                 }
             }
 
@@ -271,11 +265,11 @@ namespace StilSoft.Communication.Ftdi
         public void ClearTransmitBuffer()
         {
             if (!IsOpen())
-                ThrowFtdiDeviceException("Device is closed");
+                throw new FtdiDeviceException("Device is closed");
 
             var status = _ftdiDevice.Purge(FT_PURGE.FT_PURGE_TX);
             if (status != FT_STATUS.FT_OK)
-                throw new FtdiDeviceCommunicationException("Failed to clear transmit buffer");
+                throw new FtdiDeviceException("Clear transmit buffer failed");
         }
 
         public async Task ClearTransmitBufferAsync()
@@ -286,11 +280,11 @@ namespace StilSoft.Communication.Ftdi
         public void ClearReceiveBuffer()
         {
             if (!IsOpen())
-                ThrowFtdiDeviceException("Device is closed");
+                throw new FtdiDeviceException("Device is closed");
 
             var status = _ftdiDevice.Purge(FT_PURGE.FT_PURGE_RX);
             if (status != FT_STATUS.FT_OK)
-                throw new FtdiDeviceCommunicationException("Failed clear receive buffer");
+                throw new FtdiDeviceException("Clear receive buffer failed");
         }
 
         public async Task ClearReceiveBufferAsync()
@@ -307,18 +301,15 @@ namespace StilSoft.Communication.Ftdi
             }
             catch
             {
-                ThrowFtdiDeviceException("Unable to find device.\r\n" +
-                                         "Check is device drivers are installed properly");
+                _ftdiDevice = null;
+
+                throw new FtdiDeviceException("Unable to find FTDI device.\r\n" +
+                                              "Check is FTDI device drivers are installed properly");
             }
         }
 
         private void ConfigureDevice()
         {
-            InitializeDevice();
-
-            if (!IsOpen())
-                return;
-
             SetBaudRate(_baudRate);
             SetDataCaracteristics(_dataBits, _stopBits, _parity);
 
@@ -341,8 +332,6 @@ namespace StilSoft.Communication.Ftdi
 
         private void SetBaudRate(int baudRate)
         {
-            InitializeDevice();
-
             if (!IsOpen())
                 return;
 
@@ -353,8 +342,6 @@ namespace StilSoft.Communication.Ftdi
 
         private void SetDataCaracteristics(DataBits dataBits, StopBits stopBits, Parity parity)
         {
-            InitializeDevice();
-
             if (!IsOpen())
                 return;
 
@@ -410,12 +397,26 @@ namespace StilSoft.Communication.Ftdi
             return deviceIndex;
         }
 
-        private void ThrowFtdiDeviceException(string message)
+        private void CleanUp()
         {
+            Debug.WriteLine("Device CleanUp");
+
             try
             {
-                if (IsOpen())
-                    Close();
+                if (_ftdiDevice != null)
+                {
+                    if (IsOpen())
+                        Close();
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+
+            try
+            {
+                _ftdiDevice?.Dispose();
             }
             catch
             {
@@ -425,27 +426,6 @@ namespace StilSoft.Communication.Ftdi
             {
                 _ftdiDevice = null;
             }
-
-            throw new FtdiDeviceException(message);
-        }
-
-        private void ThrowFtdiDeviceCommunicationException(string message)
-        {
-            try
-            {
-                if (IsOpen())
-                    Close();
-            }
-            catch
-            {
-                // ignored
-            }
-            finally
-            {
-                _ftdiDevice = null;
-            }
-
-            throw new FtdiDeviceCommunicationException(message);
         }
     }
 }
