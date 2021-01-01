@@ -320,6 +320,27 @@ namespace StilSoft.Communication.Ftdi
             await Task.Run(ClearReceiveBuffer).ConfigureAwait(false);
         }
 
+        public string GetComPort()
+        {
+            lock (_lock)
+            {
+                if (!IsOpen())
+                {
+                    throw new FtdiDeviceException("Device is closed");
+                }
+
+                var status = _ftdiDevice.GetCOMPort(out var portName);
+                if (status != FT_STATUS.FT_OK)
+                {
+                    throw new FtdiDeviceCommunicationException("Failed to get COM port");
+                }
+
+                return portName;
+            }
+        }
+
+        public Task<string> GetComPortAsync() => Task.Run(GetComPort);
+
         private void InitializeDevice()
         {
             try
