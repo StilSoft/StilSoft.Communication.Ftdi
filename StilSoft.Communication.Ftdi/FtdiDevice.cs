@@ -205,7 +205,10 @@ namespace StilSoft.Communication.Ftdi
 
         public bool IsOpen()
         {
-            return _ftdiDevice != null && _ftdiDevice.IsOpen;
+            lock (_lock)
+            {
+                return _ftdiDevice != null && _ftdiDevice.IsOpen;
+            }
         }
 
         public void Write(byte[] data)
@@ -325,21 +328,20 @@ namespace StilSoft.Communication.Ftdi
             lock (_lock)
             {
                 if (!IsOpen())
-                {
                     throw new FtdiDeviceException("Device is closed");
-                }
 
                 var status = _ftdiDevice.GetCOMPort(out var portName);
                 if (status != FT_STATUS.FT_OK)
-                {
                     throw new FtdiDeviceCommunicationException("Failed to get COM port");
-                }
 
                 return portName;
             }
         }
 
-        public Task<string> GetComPortAsync() => Task.Run(GetComPort);
+        public async Task<string> GetComPortAsync()
+        {
+            return await Task.Run(GetComPort).ConfigureAwait(false);
+        }
 
         private void InitializeDevice()
         {
